@@ -1,4 +1,10 @@
+import java.util.List;
+import java.util.Vector;
+
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Scalar;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
@@ -16,7 +22,8 @@ public class Main {
 
 		// Connect NetworkTables, and get access to the publishing table
 		NetworkTable.setClientMode();
-		NetworkTable.setTeam(1675);
+		//NetworkTable.setTeam(1675);
+		NetworkTable.setIPAddress("169.254.120.85");
 		NetworkTable.initialize();
 
 		// This gets the image from a USB camera.
@@ -43,7 +50,14 @@ public class Main {
 		// All Mats and Lists should be stored outside the loop to avoid
 		// allocations as they are expensive to create
 		Mat inputImage = new Mat();
-		Mat hsv = new Mat();
+		Mat hsv = new Mat();		
+		Mat thresh = new Mat();
+		Mat contourImg = new Mat();
+		// HSV Threshold values		 (H, S, V)
+		Scalar hsvLowerb = new Scalar(55, 	0, 10);
+		Scalar hsvUpperb = new Scalar(65, 255, 255);
+		List<MatOfPoint> contours = new Vector<MatOfPoint>();
+		Mat hierarchy = new Mat();
 
 		// Infinitely process image
 		long referenceTime = System.currentTimeMillis();
@@ -57,17 +71,24 @@ public class Main {
 				System.out.println("Error grabbing frame");
 				continue;
 			}
+			
+			//inputImage = Imgcodecs.imread("/home/pi/vision1675-2017/imgs/target.jpg");
 
-			// Below is where you would do your OpenCV operations on the
-			// provided image
-			// The sample below just changes color source to HSV
-			Imgproc.cvtColor(inputImage, hsv, Imgproc.COLOR_BGR2HSV);
+			// OpenCV Processing operations
+			Imgproc.cvtColor(inputImage, hsv, Imgproc.COLOR_BGR2HSV);			
+			Core.inRange(hsv, hsvLowerb, hsvUpperb, thresh);			
+			Imgproc.findContours(thresh, contours, hierarchy , Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE);
+			
+//			for(int contourIdx = 0; contourIdx < contours.size(); contourIdx++){
+//				Imgproc.drawContours(contourImg, contours, contourIdx, new Scalar(255, 0 ,0));
+//				Imgcodecs.imwrite("/home/pi/vision1675-2017/imgs/contour"+contourIdx+".jpg", contourImg);
+//			}
 
 			// Stream the processed image
-			imageSource.putFrame(hsv);
+			imageSource.putFrame(thresh);
 
 			//Imgcodecs.imwrite("/home/pi/vision1675-2017/imgs/input.jpg", inputImage);
-			//Imgcodecs.imwrite("/home/pi/vision1675-2017/imgs/output.jpg", hsv);
+			//Imgcodecs.imwrite("/home/pi/vision1675-2017/imgs/output.jpg", thresh);
 
 			frames++;
 			double elapsedTimeMilliSeconds = (System.currentTimeMillis() - referenceTime);
