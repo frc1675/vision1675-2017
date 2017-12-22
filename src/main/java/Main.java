@@ -23,8 +23,9 @@ public class Main {
 		// Connect NetworkTables, and get access to the publishing table
 		NetworkTable.setClientMode();
 		//NetworkTable.setTeam(1675);
-		NetworkTable.setIPAddress("169.254.120.85");
+		NetworkTable.setIPAddress("169.254.153.78");
 		NetworkTable.initialize();
+		NetworkTable rootTable = NetworkTable.getTable("Root");
 
 		// This gets the image from a USB camera.
 		// Usually this will be on device 0
@@ -53,9 +54,6 @@ public class Main {
 		Mat hsv = new Mat();		
 		Mat thresh = new Mat();
 		Mat contourImg = new Mat();
-		// HSV Threshold values		 (H, S, V)
-		Scalar hsvLowerb = new Scalar(55, 	0, 10);
-		Scalar hsvUpperb = new Scalar(65, 255, 255);
 		List<MatOfPoint> contours = new Vector<MatOfPoint>();
 		Mat hierarchy = new Mat();
 
@@ -63,6 +61,24 @@ public class Main {
 		long referenceTime = System.currentTimeMillis();
 		double totalTimeSeconds = 0.0;
 		int frames = 0;
+		
+		//default HSV values
+		int hueLow = 59;
+		int hueHigh = 60;
+		int saturationLow = 0;
+		int saturationHigh = 255;
+		int valueLow = 30;
+		int valueHigh = 255;
+		
+		NetworkTable hsvTable = NetworkTable.getTable("HSV");
+		
+		hsvTable.putNumber("hueLow", hueLow);
+		hsvTable.putNumber("hueHigh", hueHigh);
+		hsvTable.putNumber("saturationLow", saturationLow);
+		hsvTable.putNumber("saturationHigh", saturationHigh);
+		hsvTable.putNumber("valueLow", valueLow);
+		hsvTable.putNumber("valueHigh", valueHigh);		
+		
 		while (true) {
 			// Grab a frame. If it has a frame time of 0, there was an error.
 			// Just skip and continue
@@ -73,11 +89,23 @@ public class Main {
 			}
 			
 			//inputImage = Imgcodecs.imread("/home/pi/vision1675-2017/imgs/target.jpg");
-
+			
+			hueLow = (int) hsvTable.getNumber("hueLow", hueLow);
+			hueHigh = (int) hsvTable.getNumber("hueHigh", hueHigh);
+			saturationLow = (int) hsvTable.getNumber("saturationLow", saturationLow);
+			saturationHigh = (int) hsvTable.getNumber("saturationHigh", saturationHigh);
+			valueLow = (int) hsvTable.getNumber("valueLow", valueLow);
+			valueHigh = (int) hsvTable.getNumber("valueHigh", valueHigh);	
+			
+			// HSV Threshold values		 (H, S, V)
+			Scalar hsvLowerb = new Scalar(hueLow, saturationLow, valueLow);
+			Scalar hsvUpperb = new Scalar(hueHigh, saturationHigh, valueHigh);
+			
 			// OpenCV Processing operations
 			Imgproc.cvtColor(inputImage, hsv, Imgproc.COLOR_BGR2HSV);			
 			Core.inRange(hsv, hsvLowerb, hsvUpperb, thresh);			
-			Imgproc.findContours(thresh, contours, hierarchy , Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE);
+//			Imgproc.findContours(thresh, contours, hierarchy , Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE);
+//			^^^This was causing an issue
 			
 //			for(int contourIdx = 0; contourIdx < contours.size(); contourIdx++){
 //				Imgproc.drawContours(contourImg, contours, contourIdx, new Scalar(255, 0 ,0));
@@ -88,7 +116,7 @@ public class Main {
 			imageSource.putFrame(thresh);
 
 			//Imgcodecs.imwrite("/home/pi/vision1675-2017/imgs/input.jpg", inputImage);
-			//Imgcodecs.imwrite("/home/pi/vision1675-2017/imgs/output.jpg", thresh);
+//			Imgcodecs.imwrite("/home/pi/vision1675-2017/imgs/output.jpg", thresh);
 
 			frames++;
 			double elapsedTimeMilliSeconds = (System.currentTimeMillis() - referenceTime);
