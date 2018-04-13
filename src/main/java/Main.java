@@ -4,6 +4,7 @@ import java.util.Vector;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -23,7 +24,7 @@ public class Main {
 		// Connect NetworkTables, and get access to the publishing table
 		NetworkTable.setClientMode();
 		//NetworkTable.setTeam(1675);
-		NetworkTable.setIPAddress("169.254.153.78");
+		NetworkTable.setIPAddress("169.254.225.64");
 		NetworkTable.initialize();
 		NetworkTable rootTable = NetworkTable.getTable("Root");
 
@@ -31,6 +32,9 @@ public class Main {
 		// Usually this will be on device 0
 		UsbCamera camera = new UsbCamera("CoprocessorCamera", 0);
 		camera.setResolution(320, 240);
+		camera.setBrightness(0);
+		camera.setExposureManual(0);
+		camera.setWhiteBalanceManual(10000);
 
 		// This grabs images from our camera for use in opencv
 		CvSink imageSink = new CvSink("CV Image Grabber");
@@ -53,8 +57,8 @@ public class Main {
 		Mat inputImage = new Mat();
 		Mat hsv = new Mat();		
 		Mat thresh = new Mat();
+		Mat contourInput = new Mat();
 		Mat contourImg = new Mat();
-		List<MatOfPoint> contours = new Vector<MatOfPoint>();
 		Mat hierarchy = new Mat();
 
 		// Infinitely process image
@@ -87,9 +91,7 @@ public class Main {
 				System.out.println("Error grabbing frame");
 				continue;
 			}
-			
-			//inputImage = Imgcodecs.imread("/home/pi/vision1675-2017/imgs/target.jpg");
-			
+						
 			hueLow = (int) hsvTable.getNumber("hueLow", hueLow);
 			hueHigh = (int) hsvTable.getNumber("hueHigh", hueHigh);
 			saturationLow = (int) hsvTable.getNumber("saturationLow", saturationLow);
@@ -103,20 +105,21 @@ public class Main {
 			
 			// OpenCV Processing operations
 			Imgproc.cvtColor(inputImage, hsv, Imgproc.COLOR_BGR2HSV);			
-			Core.inRange(hsv, hsvLowerb, hsvUpperb, thresh);			
-//			Imgproc.findContours(thresh, contours, hierarchy , Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE);
-//			^^^This was causing an issue
+			Core.inRange(hsv, hsvLowerb, hsvUpperb, thresh);
+			contourInput = thresh;
+		    List<MatOfPoint> contours = new Vector<MatOfPoint>();
+			Imgproc.findContours(contourInput, contours, hierarchy , Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE);
 			
-//			for(int contourIdx = 0; contourIdx < contours.size(); contourIdx++){
-//				Imgproc.drawContours(contourImg, contours, contourIdx, new Scalar(255, 0 ,0));
-//				Imgcodecs.imwrite("/home/pi/vision1675-2017/imgs/contour"+contourIdx+".jpg", contourImg);
-//			}
+			for(int contourIdx = 0; contourIdx < contours.size(); contourIdx++){
+				Imgproc.drawContours(inputImage, contours, contourIdx, new Scalar(255, 0 ,0));
+	            Rect rectangle = Imgproc.boundingRect(contours.get(contourIdx));
+	            System.out.println("Rectangle Height: " + rectangle.height);
+	            System.out.println("Rectangle Width: " + rectangle.width);
+	            System.out.println("Rectangle Area: " + rectangle.area());
+			}
 
 			// Stream the processed image
-			imageSource.putFrame(thresh);
-
-			//Imgcodecs.imwrite("/home/pi/vision1675-2017/imgs/input.jpg", inputImage);
-//			Imgcodecs.imwrite("/home/pi/vision1675-2017/imgs/output.jpg", thresh);
+			imageSource.putFrame(inputImage);
 
 			frames++;
 			double elapsedTimeMilliSeconds = (System.currentTimeMillis() - referenceTime);
@@ -125,6 +128,7 @@ public class Main {
 			double fps = frames / totalTimeSeconds;
 			// System.out.println("Current FPS: "+fps);
 			System.out.println("Elapsed Time: " + elapsedTimeMilliSeconds);
+			System.out.println("Number of Contours: " + contours.size());
 		}
 	}
 }
